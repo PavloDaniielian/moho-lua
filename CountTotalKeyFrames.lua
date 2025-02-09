@@ -7,7 +7,7 @@ function CountTotalKeyFrames:UILabel()
     return "Count Total Keyframes"
 end
 
--- List of channel types to count
+-- List of keyframe-supported channel types
 local channelTypes = {
     MOHO.CHANNEL_TRANSLATION_X,
     MOHO.CHANNEL_TRANSLATION_Y,
@@ -29,26 +29,21 @@ local channelTypes = {
 function countKeyframesInLayer(layer)
     local totalKeyframes = 0
 
-    -- If it's a Group Layer, check sub-layers
+    -- Detect if the layer is a group-type and safely count sub-layers
     if layer:IsGroupType() then
         print("📂 Entering Group Layer: " .. layer:Name())
 
-        -- Try to get sub-layers, even if CountLayers() is unavailable
-        local subLayerCount = layer:CountLayers() or 0
-        print("  🔍 Group contains " .. subLayerCount .. " sub-layers (if 0, checking deeper manually).")
+        -- Check if CountLayers() exists before calling it
+        if layer.CountLayers then
+            local subLayerCount = layer:CountLayers()
+            print("  🔍 Group contains " .. subLayerCount .. " sub-layers.")
 
-        if subLayerCount > 0 then
             for i = 0, subLayerCount - 1 do
                 local subLayer = layer:Layer(i)
                 totalKeyframes = totalKeyframes + countKeyframesInLayer(subLayer)
             end
         else
-            print("  ⚠️ Warning: CountLayers() failed, checking deeper manually.")
-            
-            -- If CountLayers() fails, check if it's a Smart Bone or other type
-            if layer:LayerType() == MOHO.LT_BONE then
-                totalKeyframes = totalKeyframes + countKeyframesInLayer(layer)
-            end
+            print("  ⚠️ Warning: CountLayers() is unavailable for " .. layer:Name() .. ". Skipping...")
         end
 
     -- Handle Bone Layers and Count Bone Animation Keyframes
