@@ -1,3 +1,8 @@
+--[[
+    CountKeyFrames.lua
+    Author: Your Name
+    Description: Counts all keyframes in all layers/channels of a Moho document
+]]--
 ScriptName = "CountTotalKeyFrames"
 
 CountTotalKeyFrames = {}
@@ -7,125 +12,78 @@ function CountTotalKeyFrames:UILabel()
     return "Count Total Keyframes"
 end
 
--- List of all possible keyframe-supported channels
-local channelTypes = {
-    MOHO.CHANNEL_TRANSLATION_X,
-    MOHO.CHANNEL_TRANSLATION_Y,
-    MOHO.CHANNEL_TRANSLATION_Z,
-    MOHO.CHANNEL_ROTATION_X,
-    MOHO.CHANNEL_ROTATION_Y,
-    MOHO.CHANNEL_ROTATION_Z,
-    MOHO.CHANNEL_SCALE_X,
-    MOHO.CHANNEL_SCALE_Y,
-    MOHO.CHANNEL_SCALE_Z,
-    MOHO.CHANNEL_OPACITY,
-    MOHO.CHANNEL_SHEAR_X,
-    MOHO.CHANNEL_SHEAR_Y,
-    MOHO.CHANNEL_LAYER_ORDER,
-    MOHO.CHANNEL_CURVATURE,
-    MOHO.CHANNEL_MORPH,
-    MOHO.CHANNEL_SMARTBONE,
-    MOHO.CHANNEL_VECTOR_X,
-    MOHO.CHANNEL_VECTOR_Y
-}
-
--- Function to count keyframes in any layer
-function countKeyframesInLayer(layer)
-    local totalKeyframes = 0
-
-    -- If it's a group layer, check sub-layers (if possible)
-    if layer:IsGroupType() then
-        print("📂 Entering Group Layer: " .. layer:Name())
-
-        -- Check if CountLayers() is available
-        if layer.CountLayers then
-            local subLayerCount = layer:CountLayers()
-            print("  🔍 Group contains " .. subLayerCount .. " sub-layers.")
-
-            for i = 0, subLayerCount - 1 do
-                local subLayer = layer:Layer(i)
-                totalKeyframes = totalKeyframes + countKeyframesInLayer(subLayer)
-            end
-        else
-            print("  ⚠️ Warning: CountLayers() is unavailable for " .. layer:Name() .. ". Checking channels manually.")
-            -- Even if it's a "group", count its direct channels
-        end
-    end
-
-    -- Count Bone Animation Keyframes
-    if layer:LayerType() == MOHO.LT_BONE then
-        print("🦴 Checking Bone Layer: " .. layer:Name())
-
-        local skeleton = layer:Skeleton()
-        if skeleton then
-            local boneCount = skeleton:CountBones()
-            print("  🔍 Bone Layer has " .. boneCount .. " bones.")
-
-            for i = 0, boneCount - 1 do
-                local bone = skeleton:Bone(i)
-                if bone then
-                    local keyCount = bone:AnimationChannel(MOHO.BONE_ANIM_TRANSLATION):CountKeys() +
-                                     bone:AnimationChannel(MOHO.BONE_ANIM_ANGLE):CountKeys() +
-                                     bone:AnimationChannel(MOHO.BONE_ANIM_SCALE):CountKeys()
-                    
-                    print("  🦴 Bone " .. i .. " (" .. bone:Name() .. ") has " .. keyCount .. " keyframes")
-                    totalKeyframes = totalKeyframes + keyCount
-                end
-            end
-        else
-            print("  ⚠️ Warning: No skeleton found in Bone Layer. Skipping...")
-        end
-    end
-
-    -- Count Camera Keyframes
-    if layer:LayerType() == MOHO.LT_CAMERA then
-        print("🎥 Checking Camera Layer: " .. layer:Name())
-
-        for _, channelType in ipairs(channelTypes) do
-            local channel = layer:Channel(channelType)
-            if channel then
-                local keyCount = channel:CountKeys()
-                print("  🎞️ Camera Channel has " .. keyCount .. " keyframes")
-                totalKeyframes = totalKeyframes + keyCount
-            end
-        end
-    end
-
-    -- Count All Other Animation Keyframes (Even When Grouped)
-    local channelCount = layer:CountChannels()
-    print("🎬 Checking Layer: " .. layer:Name() .. " | Channels: " .. channelCount)
-
-    for j = 0, channelCount - 1 do
-        local channel = layer:Channel(j)
-        if channel ~= nil then
-            local keyCount = channel:CountKeys()
-            print("  🎥 Channel " .. j .. " has " .. keyCount .. " keyframes")
-            totalKeyframes = totalKeyframes + keyCount
-        else
-            print("  ⚠️ Warning: Channel " .. j .. " is nil. Skipping...")
-        end
-    end
-
-    return totalKeyframes
+function printOnce(str)
+    print(str)
 end
 
--- Main function to count keyframes
-function CountTotalKeyFrames:Run(moho)
-    if moho == nil or moho.document == nil then
-        print("❌ Error: No active document found.")
+function CountKeyFrames(moho)
+    local doc = moho.document
+    if not doc then
+        printOnce("No document open.")
         return
     end
 
-    print("📜 Moho Document Found! Starting keyframe count...")
+    local totalKeys = 0
 
-    local totalKeyframes = 0
-    local layers = moho.document:CountLayers()
-    print("📦 Total Layers: " .. layers)
+    local function ProcessLayer(layer, count)
+        -- Ensure the layer is valid before counting keys
+        if not layer then return count end
+    
+        printOnce("check layer: " .. layer:Name())
 
-    for i = 0, layers - 1 do
-        local layer = moho.document:Layer(i)
-        totalKeyframes = totalKeyframes + countKeyframesInLayer(layer)
+        local numCh = layer:CountChannels()
+        printOnce("CountChannels: " .. numCh)
+    
+        for i = 0, numCh - 2 do
+            local chInfo = MOHO.MohoLayerChannel:new_local()
+            layer:GetChannelInfo(i, chInfo)
+            if( chInfo.name:Buffer() == "All Channels") then
+                if (chInfo.subChannelCount == 1) then
+                    local ch = layer:Channel(i, 0, moho.document)
+                    local countkeys = ch:CountKeys()
+                    printOnce("Channel " .. i .. ": " .. chInfo.name:Buffer() .. "  Keyframes: " .. countkeys)
+                    if countkeys > 1 then
+                        count = count + countkeys
+                    end
+                else
+                    printOnce("Channel " .. i .. ": " .. chInfo.name:Buffer())
+                    for subID = 0, chInfo.subChannelCount - 1 do
+                        local ch = layer:Channel(i, subID, moho.document)
+                        local countkeys = ch:CountKeys()
+                        if countkeys > 1 then
+                            printOnce("Sub-channel " .. subID .. "  Keyframes: " .. countkeys)
+                            count = count + countkeys
+                        end
+                    end
+                end
+            end
+        end
+        
+        -- Recursively process sublayers if it's a group layer
+        if layer:LayerType() == MOHO.LT_GROUP then
+            local groupLayer = moho:LayerAsGroup(layer)
+            if groupLayer then
+                for i = 0, groupLayer:CountLayers()-1 do
+                    local subLayer = groupLayer:Layer(i)
+                    count = ProcessLayer(subLayer, count)
+                end
+            end
+        end
+        
+        return count
     end
 
-    print("🎯 Total Keyframes in the Project: " .. totalKeyframes)
+    -- Iterate through all document layers
+    for i = 0, doc:CountLayers() - 1 do
+        local layer = doc:Layer(i)
+        printOnce("check layer: " .. layer:Name())
+        totalKeys = ProcessLayer(layer, totalKeys)
+    end
+
+    -- Show result
+    print("Total Keyframes: " .. totalKeys)
+end
+
+function CountTotalKeyFrames:Run(moho)
+    CountKeyFrames(moho)
 end
