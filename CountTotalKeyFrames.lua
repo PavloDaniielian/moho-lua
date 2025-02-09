@@ -29,20 +29,26 @@ local channelTypes = {
 function countKeyframesInLayer(layer)
     local totalKeyframes = 0
 
-    -- If the layer is a group, process its sub-layers
+    -- If it's a Group Layer, check sub-layers
     if layer:IsGroupType() then
         print("📂 Entering Group Layer: " .. layer:Name())
 
-        if layer.CountLayers then
-            local subLayerCount = layer:CountLayers()
-            print("  🔍 Group contains " .. subLayerCount .. " sub-layers.")
+        -- Try to get sub-layers, even if CountLayers() is unavailable
+        local subLayerCount = layer:CountLayers() or 0
+        print("  🔍 Group contains " .. subLayerCount .. " sub-layers (if 0, checking deeper manually).")
 
+        if subLayerCount > 0 then
             for i = 0, subLayerCount - 1 do
                 local subLayer = layer:Layer(i)
                 totalKeyframes = totalKeyframes + countKeyframesInLayer(subLayer)
             end
         else
-            print("  ⚠️ Warning: CountLayers() is unavailable for " .. layer:Name() .. ". Skipping...")
+            print("  ⚠️ Warning: CountLayers() failed, checking deeper manually.")
+            
+            -- If CountLayers() fails, check if it's a Smart Bone or other type
+            if layer:LayerType() == MOHO.LT_BONE then
+                totalKeyframes = totalKeyframes + countKeyframesInLayer(layer)
+            end
         end
 
     -- Handle Bone Layers and Count Bone Animation Keyframes
