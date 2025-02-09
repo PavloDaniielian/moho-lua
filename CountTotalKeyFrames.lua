@@ -7,7 +7,7 @@ function CountTotalKeyFrames:UILabel()
     return "Count Total Keyframes"
 end
 
--- List of keyframe-supported channel types
+-- List of all possible keyframe-supported channels
 local channelTypes = {
     MOHO.CHANNEL_TRANSLATION_X,
     MOHO.CHANNEL_TRANSLATION_Y,
@@ -22,18 +22,22 @@ local channelTypes = {
     MOHO.CHANNEL_SHEAR_X,
     MOHO.CHANNEL_SHEAR_Y,
     MOHO.CHANNEL_LAYER_ORDER,
-    MOHO.CHANNEL_CURVATURE
+    MOHO.CHANNEL_CURVATURE,
+    MOHO.CHANNEL_MORPH,
+    MOHO.CHANNEL_SMARTBONE,
+    MOHO.CHANNEL_VECTOR_X,
+    MOHO.CHANNEL_VECTOR_Y
 }
 
--- Function to count keyframes in a layer
+-- Function to count keyframes in any layer
 function countKeyframesInLayer(layer)
     local totalKeyframes = 0
 
-    -- Detect if the layer is a group-type and safely count sub-layers
+    -- If it's a group layer, check sub-layers (if possible)
     if layer:IsGroupType() then
         print("📂 Entering Group Layer: " .. layer:Name())
 
-        -- Check if CountLayers() exists before calling it
+        -- Check if CountLayers() is available
         if layer.CountLayers then
             local subLayerCount = layer:CountLayers()
             print("  🔍 Group contains " .. subLayerCount .. " sub-layers.")
@@ -43,11 +47,13 @@ function countKeyframesInLayer(layer)
                 totalKeyframes = totalKeyframes + countKeyframesInLayer(subLayer)
             end
         else
-            print("  ⚠️ Warning: CountLayers() is unavailable for " .. layer:Name() .. ". Skipping...")
+            print("  ⚠️ Warning: CountLayers() is unavailable for " .. layer:Name() .. ". Checking channels manually.")
+            -- Even if it's a "group", count its direct channels
         end
+    end
 
-    -- Handle Bone Layers and Count Bone Animation Keyframes
-    elseif layer:LayerType() == MOHO.LT_BONE then
+    -- Count Bone Animation Keyframes
+    if layer:LayerType() == MOHO.LT_BONE then
         print("🦴 Checking Bone Layer: " .. layer:Name())
 
         local skeleton = layer:Skeleton()
@@ -69,9 +75,10 @@ function countKeyframesInLayer(layer)
         else
             print("  ⚠️ Warning: No skeleton found in Bone Layer. Skipping...")
         end
+    end
 
-    -- Handle Camera Keyframes
-    elseif layer:LayerType() == MOHO.LT_CAMERA then
+    -- Count Camera Keyframes
+    if layer:LayerType() == MOHO.LT_CAMERA then
         print("🎥 Checking Camera Layer: " .. layer:Name())
 
         for _, channelType in ipairs(channelTypes) do
@@ -82,21 +89,20 @@ function countKeyframesInLayer(layer)
                 totalKeyframes = totalKeyframes + keyCount
             end
         end
+    end
 
-    -- Handle Vector, Image, and Switch Layers
-    else
-        local channelCount = layer:CountChannels()
-        print("🎬 Checking Layer: " .. layer:Name() .. " | Channels: " .. channelCount)
+    -- Count All Other Animation Keyframes (Even When Grouped)
+    local channelCount = layer:CountChannels()
+    print("🎬 Checking Layer: " .. layer:Name() .. " | Channels: " .. channelCount)
 
-        for j = 0, channelCount - 1 do
-            local channel = layer:Channel(j)
-            if channel ~= nil then
-                local keyCount = channel:CountKeys()
-                print("  🎥 Channel " .. j .. " has " .. keyCount .. " keyframes")
-                totalKeyframes = totalKeyframes + keyCount
-            else
-                print("  ⚠️ Warning: Channel " .. j .. " is nil. Skipping...")
-            end
+    for j = 0, channelCount - 1 do
+        local channel = layer:Channel(j)
+        if channel ~= nil then
+            local keyCount = channel:CountKeys()
+            print("  🎥 Channel " .. j .. " has " .. keyCount .. " keyframes")
+            totalKeyframes = totalKeyframes + keyCount
+        else
+            print("  ⚠️ Warning: Channel " .. j .. " is nil. Skipping...")
         end
     end
 
