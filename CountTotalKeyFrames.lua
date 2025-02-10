@@ -23,9 +23,13 @@ function CountKeyFrames(moho)
         return
     end
 
+    local totalLayers = 0
+
     local function ProcessLayer(layer, layername)
         -- Ensure the layer is valid before counting keys
         if not layer then return 0 end
+
+        totalLayers = totalLayers + 1
     
         local layer_Type = layer:LayerType()
         
@@ -109,11 +113,11 @@ function CountKeyFrames(moho)
     for i = 0, doc:CountLayers() - 1 do
         local layer = doc:Layer(i)
         printOnce("check layer: " .. layer:Name())
-        totalKeys = ProcessLayer(layer, layer:Name() )
+        totalKeys = totalKeys + ProcessLayer(layer, layer:Name() )
     end
 
     -- Show result
-    print("Total Keyframes: " .. totalKeys)
+    print("Total Layer: " .. totalLayers .. ", Total Keyframes: " .. totalKeys)
 end
 
 function CountTotalKeyFrames:Run(moho)
