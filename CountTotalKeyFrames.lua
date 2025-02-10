@@ -51,6 +51,11 @@ function CountKeyFrames(moho)
                 for _ in pairs(uniqueKeyframes) do
                     totalUniqueKeyframes = totalUniqueKeyframes + 1
                 end
+                -- if totalUniqueKeyframes <= 1 then
+                --     totalUniqueKeyframes = 0
+                -- end
+                -- printOnce( "layer(" .. layername .. ")(" .. layer_Type .. "): Channel " .. i .. "(" .. chInfo.name:Buffer() .. ") :  Keyframes: " .. totalUniqueKeyframes)
+                -- cur_keynum = cur_keynum + totalUniqueKeyframes
                 if totalUniqueKeyframes > 1 then
                     printOnce( "layer(" .. layername .. ")(" .. layer_Type .. "): Channel " .. i .. "(" .. chInfo.name:Buffer() .. ") :  Keyframes: " .. totalUniqueKeyframes)
                     cur_keynum = cur_keynum + totalUniqueKeyframes
@@ -95,7 +100,8 @@ function CountKeyFrames(moho)
         if layer_Type == MOHO.LT_BONE or layer_Type == MOHO.LT_GROUP then
             local groupLayer = moho:LayerAsGroup(layer)
             if groupLayer and groupLayer:CountLayers() > 0 then
-                for i = 0, groupLayer:CountLayers()-1 do
+                -- for i = 0, groupLayer:CountLayers()-1 do
+                for i = groupLayer:CountLayers()-1, 0, -1 do
                     local subLayer = groupLayer:Layer(i)
                     local s = layername .. "=>" .. subLayer:Name()
                     cur_keynum = cur_keynum + ProcessLayer(subLayer, s)
@@ -110,7 +116,8 @@ function CountKeyFrames(moho)
 
     -- Iterate through all document layers
     local totalKeys = 0
-    for i = 0, doc:CountLayers() - 1 do
+    -- for i = 0, doc:CountLayers() - 1 do
+    for i = doc:CountLayers() - 1, 0, -1 do
         local layer = doc:Layer(i)
         printOnce("check layer: " .. layer:Name())
         totalKeys = totalKeys + ProcessLayer(layer, layer:Name() )
