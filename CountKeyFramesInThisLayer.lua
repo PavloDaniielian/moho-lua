@@ -43,7 +43,7 @@ function CountKeyFramesInThisLayer:Run(moho)
 	for i = 0, numCh - 2 do
 		local chInfo = MOHO.MohoLayerChannel:new_local()
 		moho.layer:GetChannelInfo(i, chInfo)
-		if not chInfo.selectionBased and chInfo.name:Buffer() ~= "All Channels" then
+		if not chInfo.selectionBased and chInfo.name:Buffer() ~= "All Channels" and chInfo.name:Buffer() ~= "所有轨道" then
 			local uniqueKeyframes = {}
 			for subID = 0, chInfo.subChannelCount-1 do
 				local ch = moho.layer:Channel(i, subID, moho.document)
